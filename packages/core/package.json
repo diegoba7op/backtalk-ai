@@ -11,8 +11,8 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --loader '.md=text'",
-    "dev": "tsup src/index.ts --format esm --dts --watch --loader '.md=text'",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "test": "vitest run"
   },
   "dependencies": {
