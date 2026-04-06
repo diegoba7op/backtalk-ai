@@ -59,14 +59,12 @@ export interface TestResult {
   resultId?: string; // set after DB insert
 }
 
-export type FeedbackAction = 'approve' | 'reject';
-
 export interface Feedback {
   id: string;
   testResultId: string;
   testId: string;
   suiteId: string | null;
-  action: FeedbackAction;
+  action: 'approve' | 'reject';
   comment: string | null;
   createdAt: number;
 }

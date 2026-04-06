@@ -5,14 +5,14 @@ import { eq, desc } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { runs, testResults, feedback } from './db/schema.js';
 import type { BacktalkDB } from './db/client.js';
-import type { FeedbackAction, Feedback, StoredTestResult, Run } from './types.js';
+import type { Feedback, StoredTestResult, Run } from './types.js';
 
 // Add feedback for the most recent test result matching testId.
 // Returns the created feedback id, or null if no matching test result found.
 export async function addFeedback(
   db: BacktalkDB,
   testId: string,
-  action: FeedbackAction,
+  action: 'approve' | 'reject',
   comment?: string
 ): Promise<string | null> {
   const [result] = await db
