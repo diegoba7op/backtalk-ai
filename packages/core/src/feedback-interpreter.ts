@@ -1,8 +1,10 @@
 import type { LLMClient } from './llm.js';
 import type { ResolvedTest, Conversation, JudgeResult, InterpretedFeedback } from './types.js';
-import promptTemplate from './prompts/feedback-interpreter.md';
+import judgePrompt from './prompts/feedback-interpreter.md';
+import runnerPrompt from './prompts/feedback-interpreter-runner.md';
 
 export async function interpretFeedback(
+  type: 'judge' | 'runner',
   rawComment: string,
   test: ResolvedTest,
   conversation: Conversation,
@@ -18,20 +20,28 @@ export async function interpretFeedback(
     .map((m) => `${m.role === 'user' ? 'User' : 'Bot'}: ${m.content}`)
     .join('\n');
 
-  const prompt = promptTemplate
-    .replace('{{chatbotSpec}}', test.chatbotSpec)
-    .replace('{{reference}}', reference)
-    .replace('{{conversation}}', conversationText)
-    .replace('{{qualityScore}}', String(judgeResult.quality.score))
-    .replace('{{qualityReasoning}}', judgeResult.quality.reasoning)
-    .replace('{{fidelityScore}}', String(judgeResult.fidelity.score))
-    .replace('{{fidelityReasoning}}', judgeResult.fidelity.reasoning)
-    .replace('{{rawComment}}', rawComment)
-    .trim();
+  let prompt: string;
+  if (type === 'judge') {
+    prompt = judgePrompt
+      .replace('{{chatbotSpec}}', test.chatbotSpec)
+      .replace('{{reference}}', reference)
+      .replace('{{conversation}}', conversationText)
+      .replace('{{qualityScore}}', String(judgeResult.quality.score))
+      .replace('{{qualityReasoning}}', judgeResult.quality.reasoning)
+      .replace('{{fidelityScore}}', String(judgeResult.fidelity.score))
+      .replace('{{fidelityReasoning}}', judgeResult.fidelity.reasoning)
+      .replace('{{rawComment}}', rawComment);
+  } else {
+    prompt = runnerPrompt
+      .replace('{{chatbotSpec}}', test.chatbotSpec)
+      .replace('{{reference}}', reference)
+      .replace('{{conversation}}', conversationText)
+      .replace('{{rawComment}}', rawComment);
+  }
 
   const response = await llm.chat({
     model: test.judgeModel,
-    messages: [{ role: 'user', content: prompt }],
+    messages: [{ role: 'user', content: prompt.trim() }],
   });
 
   const match = response.match(/```json\s*([\s\S]*?)```/);

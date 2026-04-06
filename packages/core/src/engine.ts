@@ -127,12 +127,6 @@ export async function submitFeedback(options: SubmitFeedbackOptions): Promise<vo
   const row = await getLatestTestResult(db, options.testId);
   if (!row) throw new Error(`No test result found for test "${options.testId}"`);
 
-  if (options.type === 'runner') {
-    await addRunnerFeedback(db, row.id, options.comment);
-    return;
-  }
-
-  // Judge feedback: enrich with LLM before storing
   const test: import('./types.js').ResolvedTest = JSON.parse(row.configSnapshot);
   const conversation: import('./types.js').Conversation = { messages: JSON.parse(row.conversation) };
   const judgeResult: import('./types.js').JudgeResult = {
@@ -142,8 +136,13 @@ export async function submitFeedback(options: SubmitFeedbackOptions): Promise<vo
   };
 
   const llm = createLLMClient(test.judgeModel);
-  const interpreted = await interpretFeedback(options.comment, test, conversation, judgeResult, llm);
-  await addJudgeFeedback(db, row.id, options.comment, interpreted);
+  const interpreted = await interpretFeedback(options.type, options.comment, test, conversation, judgeResult, llm);
+
+  if (options.type === 'runner') {
+    await addRunnerFeedback(db, row.id, options.comment, interpreted);
+  } else {
+    await addJudgeFeedback(db, row.id, options.comment, interpreted);
+  }
 }
 
 export { openDB };

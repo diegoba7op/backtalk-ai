@@ -39,9 +39,7 @@ program
   .action(async (testId: string, comment: string, opts) => {
     const type = opts.runner ? 'runner' : 'judge';
 
-    if (type === 'judge') {
-      console.log(chalk.dim('Interpreting feedback…'));
-    }
+    console.log(chalk.dim('Interpreting feedback…'));
 
     try {
       await submitFeedback({ testId, comment, type, configPath: opts.config });

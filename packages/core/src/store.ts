@@ -41,7 +41,8 @@ export async function addJudgeFeedback(
 export async function addRunnerFeedback(
   db: BacktalkDB,
   testResultId: string,
-  rawComment: string
+  rawComment: string,
+  interpreted: InterpretedFeedback
 ): Promise<string> {
   const id = ulid();
   await db.insert(feedback).values({
@@ -49,7 +50,7 @@ export async function addRunnerFeedback(
     testResultId,
     type: 'runner',
     rawComment,
-    comment: rawComment,
+    comment: interpreted.comment,
     qualityScoreCorrection: null,
     fidelityScoreCorrection: null,
     createdAt: Date.now(),
