@@ -64,6 +64,14 @@ In guided/intent modes, the runner signals conversation completion via a `<<<DON
 - Returns scores as JSON in a markdown fence (provider-agnostic, no structured output needed)
 - Await (non-streaming) LLM calls
 
+**Feedback Interpreter** — Enriches raw human feedback before it is stored. Plain function, not a class.
+- Runs on every `backtalk feedback` submission (both judge and runner feedback)
+- Reads the raw comment alongside the full conversation, scores, and reference to add specific context
+- For judge feedback: also infers corrected quality/fidelity scores when the comment implies them
+- For runner feedback: identifies which specific exchanges the comment refers to
+- Returns an enriched comment (+ optional score corrections) stored alongside the original raw comment
+- Uses the judge model; returns JSON in a markdown fence (same pattern as judge)
+
 ### Test Isolation
 
 Every test starts with a fresh `messages[]` array. No conversation state, LLM context, or chatbot session persists between tests. Each test is fully independent.
@@ -72,20 +80,27 @@ Every test starts with a fresh `messages[]` array. No conversation state, LLM co
 
 ```
 packages/core/src/
-├── types.ts           # All shared types/interfaces (no deps)
-├── config.ts          # YAML parsing, hierarchy resolution, env var interpolation
-├── llm.ts             # LLM provider abstraction (Anthropic + OpenAI SDKs)
-├── chatbot-client.ts  # HTTP client for target chatbots (OpenAI SDK with custom baseURL)
-├── runner.ts          # Runner agent (guided/intent/strict modes)
-├── judge.ts           # Judge agent (scores conversations)
-├── feedback.ts        # Feedback retrieval + prompt building
-├── engine.ts          # Orchestrator — wires everything together (composition root)
-├── output.ts          # Formats results for display
+├── types.ts                        # All shared types/interfaces (no deps)
+├── config.ts                       # YAML parsing, hierarchy resolution, env var interpolation
+├── llm.ts                          # LLM provider abstraction (Anthropic + OpenAI SDKs)
+├── chatbot-client.ts               # HTTP client for target chatbots (OpenAI SDK with custom baseURL)
+├── runner.ts                       # Runner agent (guided/intent/strict modes)
+├── judge.ts                        # Judge agent (scores conversations)
+├── feedback.ts                     # Feedback retrieval + judge prompt building
+├── feedback-interpreter.ts         # Enriches raw feedback with LLM before storage
+├── store.ts                        # DB query helpers (addJudgeFeedback, addRunnerFeedback, etc.)
+├── engine.ts                       # Orchestrator — wires everything together (composition root)
+├── output.ts                       # Formats results for display
 ├── db/
-│   ├── schema.ts      # Drizzle ORM table definitions
-│   ├── client.ts      # DB connection factory
-│   └── migrations/    # Drizzle migration files
-└── index.ts           # Public API barrel export
+│   ├── schema.ts                   # Drizzle ORM table definitions
+│   ├── client.ts                   # DB connection factory (auto-migrates on open)
+│   └── migrations/                 # Drizzle-generated SQL migration files
+├── prompts/
+│   ├── runner.md                   # Runner system prompt template
+│   ├── judge.md                    # Judge system prompt template
+│   ├── feedback-interpreter.md     # Interpreter prompt for judge feedback
+│   └── feedback-interpreter-runner.md  # Interpreter prompt for runner feedback
+└── index.ts                        # Public API barrel export
 ```
 
 ### Dependency Graph
@@ -95,9 +110,7 @@ types.ts (leaf — no deps)
   ↑
 config.ts, llm.ts, chatbot-client.ts, db/schema.ts
   ↑
-feedback.ts, runner.ts, judge.ts (receive deps via function args)
-  ↑
-output.ts
+feedback.ts, feedback-interpreter.ts, runner.ts, judge.ts, store.ts
   ↑
 engine.ts (composition root — wires all modules, owns execution flow)
   ↑
@@ -109,13 +122,22 @@ Key principle: runner, judge, and feedback are plain functions that receive thei
 ### Data Flow
 
 ```
-CLI → engine.resolveConfig()
-       → config.loadConfig() → config.resolveTests() → ResolvedTest[]
-       → for each test (sequential):
-           → runner(test, chatbotClient, llm) → Conversation
-           → judge(conversation, test, feedback, llm) → JudgeResult
-           → output.formatResult(test, judgeResult) → stdout
-       → output.formatSummary(allResults) → stdout
+backtalk run:
+  CLI → engine.run()
+         → config.loadConfig() → config.resolveTests() → ResolvedTest[]
+         → openDB() → migrate()
+         → for each test (sequential):
+             → store.buildFeedbackPrompt(db, testId) → feedbackContext
+             → runner(test, chatbotClient, llm) → Conversation
+             → judge(conversation, test, feedbackContext, llm) → JudgeResult
+             → db.insert(test_results)
+         → db.insert(runs)
+
+backtalk feedback <test-id> <comment> [--runner]:
+  CLI → engine.submitFeedback()
+         → store.getLatestTestResult(db, testId)
+         → feedbackInterpreter(type, rawComment, test, conversation, judgeResult, llm) → InterpretedFeedback
+         → store.addJudgeFeedback() or store.addRunnerFeedback()
 ```
 
 ### Model Routing
@@ -160,11 +182,14 @@ SQLite + Drizzle ORM. Three tables:
 - `config_snapshot` (JSON — resolved test config)
 - `created_at` (timestamp)
 
-**feedback** — one row per feedback action
+**feedback** — one row per feedback submission
 - `id` (text, primary key, ULID)
 - `test_result_id` (foreign key → test_results)
-- `action` (text — `approve` or `reject`)
-- `comment` (text, nullable)
+- `type` (text — `judge` or `runner`)
+- `raw_comment` (text — what the human typed)
+- `comment` (text — LLM-interpreted version with conversation context)
+- `quality_score_correction` (integer, nullable — inferred by interpreter, judge feedback only)
+- `fidelity_score_correction` (integer, nullable — inferred by interpreter, judge feedback only)
 - `created_at` (timestamp)
 
 ## Model Configuration
