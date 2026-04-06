@@ -33,7 +33,6 @@ export const feedback = sqliteTable('feedback', {
   testResultId: text('test_result_id')
     .notNull()
     .references(() => testResults.id),
-  action: text('action', { enum: ['approve', 'reject'] }).notNull(),
-  comment: text('comment'),
+  comment: text('comment').notNull(),
   createdAt: integer('created_at').notNull(),
 });

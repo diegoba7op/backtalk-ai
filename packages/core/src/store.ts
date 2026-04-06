@@ -12,8 +12,7 @@ import type { Feedback, StoredTestResult, Run } from './types.js';
 export async function addFeedback(
   db: BacktalkDB,
   testId: string,
-  action: 'approve' | 'reject',
-  comment?: string
+  comment: string
 ): Promise<string | null> {
   const [result] = await db
     .select({ id: testResults.id })
@@ -28,8 +27,7 @@ export async function addFeedback(
   await db.insert(feedback).values({
     id,
     testResultId: result.id,
-    action,
-    comment: comment ?? null,
+    comment,
     createdAt: Date.now(),
   });
   return id;
@@ -86,7 +84,6 @@ export async function listFeedback(db: BacktalkDB, limit = 20): Promise<Feedback
       testResultId: feedback.testResultId,
       testId: testResults.testId,
       suiteId: testResults.suiteId,
-      action: feedback.action,
       comment: feedback.comment,
       createdAt: feedback.createdAt,
     })

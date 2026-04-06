@@ -64,8 +64,7 @@ export interface Feedback {
   testResultId: string;
   testId: string;
   suiteId: string | null;
-  action: 'approve' | 'reject';
-  comment: string | null;
+  comment: string;
   createdAt: number;
 }
 

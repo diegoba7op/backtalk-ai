@@ -32,32 +32,20 @@ program
   });
 
 program
-  .command('feedback <test-id>')
-  .description('Give feedback on the most recent result for a test')
+  .command('feedback <test-id> <comment>')
+  .description('Correct the most recent judgment for a test')
   .option('-c, --config <path>', 'path to config file (to locate DB)', 'backtalk.yaml')
-  .option('--approve', 'approve the judgment')
-  .option('--reject [comment]', 'reject the judgment (optional comment)')
-  .action(async (testId: string, opts) => {
-    if (!opts.approve && opts.reject === undefined) {
-      console.error(chalk.red('Specify --approve or --reject'));
-      process.exit(1);
-    }
-
-    const action = opts.approve ? 'approve' : 'reject';
-    const comment = typeof opts.reject === 'string' ? opts.reject : undefined;
-
+  .action(async (testId: string, comment: string, opts) => {
     const dbPath = path.join(path.dirname(path.resolve(opts.config)), '.backtalk.db');
     const db = openDB(dbPath);
-    const id = await addFeedback(db, testId, action, comment);
+    const id = await addFeedback(db, testId, comment);
 
     if (!id) {
       console.error(chalk.red(`No test result found for test "${testId}"`));
       process.exit(1);
     }
 
-    const verb = action === 'approve' ? chalk.green('Approved') : chalk.red('Rejected');
-    const tail = comment ? ` — "${comment}"` : '';
-    console.log(`${verb}: ${testId}${tail}`);
+    console.log(`Feedback saved: ${chalk.bold(testId)} — "${comment}"`);
   });
 
 program
@@ -119,9 +107,7 @@ program
     if (feedbackRows.length > 0) {
       console.log(chalk.bold('Recent feedback:\n'));
       for (const f of feedbackRows) {
-        const verb = f.action === 'approve' ? chalk.green('approved') : chalk.red('rejected');
-        const tail = f.comment ? `  "${f.comment}"` : '';
-        console.log(`  ${verb}  ${f.testId}${tail}`);
+        console.log(`  ${chalk.bold(f.testId)}  "${f.comment}"`);
       }
     }
   });
