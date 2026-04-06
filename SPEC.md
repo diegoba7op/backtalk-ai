@@ -46,7 +46,7 @@ Controls how strictly the runner follows the reference conversation:
 
 Mode can be set globally, per suite, or per test case (most specific wins). Default: `guided`.
 
-In guided/intent modes, the runner signals conversation completion via a `[DONE]` token. The judge evaluates fidelity based on intent coverage, not 1:1 turn matching.
+In guided/intent modes, the runner signals conversation completion via a `<<<DONE>>>` sentinel token (must appear alone on its own line, exact match after trimming whitespace). The judge evaluates fidelity based on intent coverage, not 1:1 turn matching.
 
 ## Architecture
 
@@ -54,8 +54,8 @@ In guided/intent modes, the runner signals conversation completion via a `[DONE]
 
 **Runner Agent** — Plays the user role in conversations. Plain function, not a class.
 - In `strict` mode: sends exact messages from reference (no LLM call for user turns)
-- In `guided` mode: LLM agent with full reference conversation, follows spirit + flow, adapts wording. Signals `[DONE]` when complete.
-- In `intent` mode: LLM agent with auto-summarized scenario intent, improvises naturally. Signals `[DONE]` when complete.
+- In `guided` mode: LLM agent with full reference conversation, follows spirit + flow, adapts wording. Signals `<<<DONE>>>` when complete.
+- In `intent` mode: LLM agent with auto-summarized scenario intent, improvises naturally. Signals `<<<DONE>>>` when complete.
 - Multi-turn loop: one LLM call per user turn, adapts to actual bot responses each turn. The runner function owns the full loop (LLM call → chatbot call → repeat). Hard programmatic call limit at 2× reference turn count, enforced in code (not prompt).
 
 **Judge Agent** — Evaluates the full conversation after it completes. Plain function, not a class.
@@ -63,6 +63,10 @@ In guided/intent modes, the runner signals conversation completion via a `[DONE]
 - Scores against metrics + reference conversation + optional custom judge instructions
 - Returns scores as JSON in a markdown fence (provider-agnostic, no structured output needed)
 - Await (non-streaming) LLM calls
+
+### Test Isolation
+
+Every test starts with a fresh `messages[]` array. No conversation state, LLM context, or chatbot session persists between tests. Each test is fully independent.
 
 ### Module Structure
 
