@@ -18,6 +18,7 @@ export interface ReferenceTurn {
 // A resolved test — all config hierarchy already flattened
 export interface ResolvedTest {
   id: string;
+  suiteId?: string;  // undefined for top-level tests
   description: string;
   chatbotUrl: string;
   chatbotApiKey?: string;

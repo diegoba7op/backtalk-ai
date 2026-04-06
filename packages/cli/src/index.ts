@@ -12,8 +12,17 @@ program
 program
   .command('run')
   .description('Run tests')
-  .action(async () => {
-    const results = await run();
+  .option('-c, --config <path>', 'path to config file', 'backtalk.yaml')
+  .option('-s, --suite <id>', 'run only this suite')
+  .option('-t, --test <id>', 'run only this test')
+  .option('-m, --mode <mode>', 'override runner mode (guided | intent | strict)')
+  .action(async (opts) => {
+    const results = await run({
+      configPath: opts.config,
+      suite: opts.suite,
+      test: opts.test,
+      mode: opts.mode,
+    });
     printResults(results);
   });
 

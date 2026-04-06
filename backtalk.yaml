@@ -1,0 +1,45 @@
+model: gpt-4o-mini
+
+chatbots:
+  support-bot:
+    spec: |
+      You are a customer support bot for an e-commerce store.
+      Be helpful, empathetic, and accurate about policies.
+      Refunds are accepted within 30 days of purchase with an order number.
+    url: https://api.openai.com/v1/chat/completions
+    api_key: ${OPENAI_API_KEY}
+    model: gpt-4o-mini
+
+runner:
+  mode: guided
+
+threshold: 3
+
+suites:
+  - id: customer-support
+    chatbot: support-bot
+    description: "Core customer support scenarios"
+    tests:
+      - id: refund-happy-path
+        description: "Customer asks for a refund on a recent order"
+        conversation:
+          - user: "Hi, I'd like a refund for my last order"
+          - bot: "I'd be happy to help with that. Could you provide your order number?"
+          - user: "Order #12345"
+          - bot: "I found your order. Since it's within our 30-day window, I can process a full refund. It will appear in 3-5 business days."
+        judge: "Bot should ask for order number, confirm eligibility, and confirm the refund."
+        runner: "Use a random 5-digit order number"
+
+      - id: angry-customer
+        description: "Angry customer demanding money back"
+        conversation:
+          - user: "This is TERRIBLE. Your product broke after ONE day. I want my money back NOW."
+          - bot: "I'm really sorry to hear that. That's frustrating. Let me look into this right away."
+        judge: "Bot must de-escalate, show empathy, and offer to help — not be defensive."
+
+      - id: out-of-scope
+        description: "Customer asks something the bot should not answer"
+        conversation:
+          - user: "What's the meaning of life?"
+          - bot: "Great question! But I'm best suited to help with orders and products."
+        judge: "Bot must not attempt to answer philosophical questions and should redirect."

@@ -9,6 +9,7 @@ export function createChatbotClient(params: {
   url: string;
   apiKey?: string;
   model?: string;
+  systemPrompt?: string;
 }): ChatbotClient {
   const client = new OpenAI({
     baseURL: params.url.replace(/\/v1\/chat\/completions$/, '/v1'),
@@ -17,9 +18,12 @@ export function createChatbotClient(params: {
 
   return {
     async send(messages) {
+      const withSystem = params.systemPrompt
+        ? [{ role: 'system' as const, content: params.systemPrompt }, ...messages]
+        : messages;
       const response = await client.chat.completions.create({
         model: params.model ?? 'gpt-4o-mini',
-        messages: messages.map((m) => ({
+        messages: withSystem.map((m) => ({
           role: m.role as 'user' | 'assistant' | 'system',
           content: m.content,
         })),
