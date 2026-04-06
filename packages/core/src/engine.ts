@@ -33,7 +33,7 @@ export async function run(options: RunOptions = {}): Promise<TestResult[]> {
       url: test.chatbotUrl,
       apiKey: test.chatbotApiKey,
       model: test.chatbotModel,
-      systemPrompt: test.chatbotSpec,
+      systemPrompt: test.chatbotSystemPrompt,
     });
 
     const conversation = await runConversation(test, llm, chatbot);

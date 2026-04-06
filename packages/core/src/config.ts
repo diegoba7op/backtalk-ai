@@ -9,6 +9,7 @@ interface RawChatbotConfig {
   url: string;
   model?: string;
   api_key?: string;
+  system_prompt?: string;  // injected as system message to the API; omit for already-deployed bots
 }
 
 type RawThreshold = number | { quality: number; fidelity: number };
@@ -156,6 +157,7 @@ function resolveTest(
     chatbotApiKey: chatbot.api_key ? interpolateEnv(chatbot.api_key) : undefined,
     chatbotModel: chatbot.model,
     chatbotSpec: chatbot.spec,
+    chatbotSystemPrompt: chatbot.system_prompt ? interpolateEnv(chatbot.system_prompt) : undefined,
     runnerMode: mode,
     runnerModel,
     judgeModel,

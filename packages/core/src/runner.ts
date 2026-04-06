@@ -16,6 +16,7 @@ function buildRunnerSystemPrompt(test: ResolvedTest): string {
     .join('\n');
 
   return runnerPromptTemplate
+    .replace('{{chatbotSpec}}', test.chatbotSpec)
     .replace('{{reference}}', reference)
     .replace(
       '{{runnerInstructions}}',
