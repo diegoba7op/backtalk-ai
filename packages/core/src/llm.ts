@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import type { Message } from './types.js';
 
 export interface LLMClient {
-  chat(params: { model: string; system: string; messages: Message[] }): Promise<string>;
+  chat(params: { model: string; system?: string; messages: Message[] }): Promise<string>;
 }
 
 function isClaudeModel(model: string): boolean {
@@ -17,7 +17,7 @@ function createAnthropicClient(): LLMClient {
       const response = await client.messages.create({
         model,
         max_tokens: 4096,
-        system,
+        ...(system ? { system } : {}),
         messages: messages.map((m) => ({
           role: m.role as 'user' | 'assistant',
           content: m.content,
@@ -37,7 +37,7 @@ function createOpenAIClient(): LLMClient {
       const response = await client.chat.completions.create({
         model,
         messages: [
-          { role: 'system', content: system },
+          ...(system ? [{ role: 'system' as const, content: system }] : []),
           ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
         ],
       });
