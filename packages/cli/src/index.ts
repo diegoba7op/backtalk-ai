@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { run, printResults } from '@backtalk-ai/core';
+import { run } from '@backtalk-ai/core';
+import { createReporter } from './reporter.js';
 
 const program = new Command();
 
@@ -16,14 +17,16 @@ program
   .option('-s, --suite <id>', 'run only this suite')
   .option('-t, --test <id>', 'run only this test')
   .option('-m, --mode <mode>', 'override runner mode (guided | intent | strict)')
+  .option('-v, --verbose', 'show conversation turns as they happen')
   .action(async (opts) => {
-    const results = await run({
+    const reporter = createReporter({ verbose: opts.verbose ?? false });
+    await run({
       configPath: opts.config,
       suite: opts.suite,
       test: opts.test,
       mode: opts.mode,
+      reporter,
     });
-    printResults(results);
   });
 
 program.parse();

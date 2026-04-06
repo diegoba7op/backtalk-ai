@@ -32,7 +32,8 @@ function buildRunnerSystemPrompt(test: ResolvedTest): string {
 export async function runConversation(
   test: ResolvedTest,
   llm: LLMClient,
-  chatbot: ChatbotClient
+  chatbot: ChatbotClient,
+  onTurn?: (user: string, bot: string) => void
 ): Promise<Conversation> {
   const maxTurns = test.reference.filter((t) => t.user).length * 2;
   const conversationMessages: Message[] = [];
@@ -64,6 +65,8 @@ export async function runConversation(
     const botResponse = await chatbot.send(conversationMessages);
     const botMessage: Message = { role: 'assistant', content: botResponse };
     conversationMessages.push(botMessage);
+
+    onTurn?.(fakeUserMessage.content, botResponse);
 
     // Feed chatbot response back so runner can adapt its next message
     runnerHistory.push({ role: 'user', content: `Chatbot responded: ${botResponse}` });

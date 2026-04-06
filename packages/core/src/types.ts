@@ -57,3 +57,11 @@ export interface TestResult {
   conversation: Conversation;
   judgeResult: JudgeResult;
 }
+
+export interface Reporter {
+  onSuiteStart?(suiteId: string): void;
+  onTestStart?(test: ResolvedTest): void;
+  onTurn?(user: string, bot: string): void;
+  onTestComplete?(result: TestResult): void;
+  onRunComplete?(results: TestResult[]): void;
+}
