@@ -59,6 +59,40 @@ export interface TestResult {
   resultId?: string; // set after DB insert
 }
 
+export type FeedbackAction = 'approve' | 'reject';
+
+export interface Feedback {
+  id: string;
+  testResultId: string;
+  testId: string;
+  suiteId: string | null;
+  action: FeedbackAction;
+  comment: string | null;
+  createdAt: number;
+}
+
+export interface StoredTestResult {
+  id: string;
+  runId: string;
+  suiteId: string | null;
+  testId: string;
+  qualityScore: number;
+  fidelityScore: number;
+  qualityReasoning: string;
+  fidelityReasoning: string;
+  passed: boolean;
+  createdAt: number;
+}
+
+export interface Run {
+  id: string;
+  startedAt: number;
+  finishedAt: number;
+  totalTests: number;
+  passed: number;
+  failed: number;
+}
+
 export interface Reporter {
   onSuiteStart?(suiteId: string): void;
   onTestStart?(test: ResolvedTest): void;
