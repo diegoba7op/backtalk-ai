@@ -56,6 +56,7 @@ export interface TestResult {
   test: ResolvedTest;
   conversation: Conversation;
   judgeResult: JudgeResult;
+  resultId?: string; // set after DB insert
 }
 
 export interface Reporter {

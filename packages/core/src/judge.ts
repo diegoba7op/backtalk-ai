@@ -2,7 +2,7 @@ import type { LLMClient } from './llm.js';
 import type { ResolvedTest, Conversation, JudgeResult } from './types.js';
 import judgePromptTemplate from './prompts/judge.md';
 
-function buildJudgeSystemPrompt(test: ResolvedTest): string {
+function buildJudgeSystemPrompt(test: ResolvedTest, feedbackContext = ''): string {
   const reference = test.reference
     .map((turn) => {
       if (turn.user) return `User: ${turn.user}`;
@@ -19,6 +19,7 @@ function buildJudgeSystemPrompt(test: ResolvedTest): string {
       '{{judgeInstructions}}',
       test.judgeInstructions ? `Additional evaluation instructions: ${test.judgeInstructions}` : ''
     )
+    .replace('{{feedbackContext}}', feedbackContext)
     .trim();
 }
 
@@ -38,11 +39,12 @@ function parseJudgeResponse(raw: string): { quality: { score: number; reasoning:
 export async function judgeConversation(
   test: ResolvedTest,
   conversation: Conversation,
-  llm: LLMClient
+  llm: LLMClient,
+  feedbackContext = ''
 ): Promise<JudgeResult> {
   const response = await llm.chat({
     model: test.judgeModel,
-    system: buildJudgeSystemPrompt(test),
+    system: buildJudgeSystemPrompt(test, feedbackContext),
     messages: [{ role: 'user', content: buildJudgeUserMessage(conversation) }],
   });
 

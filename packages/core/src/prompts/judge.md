@@ -8,6 +8,8 @@ Reference conversation (what a good interaction looks like):
 
 {{judgeInstructions}}
 
+{{feedbackContext}}
+
 Score the actual conversation on two metrics (1-5):
 - quality: How well did the bot handle the conversation? Was it helpful, accurate, on-brand?
 - fidelity: How closely did the conversation track the reference intent? Did the bot cover the same ground?
