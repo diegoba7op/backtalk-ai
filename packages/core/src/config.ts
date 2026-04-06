@@ -9,7 +9,7 @@ interface RawChatbotConfig {
   url: string;
   model?: string;
   api_key?: string;
-  mock_chatbot_system_prompt?: string;  // injected as system message to the API; omit for already-deployed bots
+  mock_chatbot_system_prompt?: string | boolean;  // true = use spec; string = custom prompt; omit for deployed bots
 }
 
 type RawThreshold = number | { quality: number; fidelity: number };
@@ -116,6 +116,12 @@ export function resolveTests(config: RawConfig, filters: RunFilters = {}): Resol
   return results;
 }
 
+function resolveMockPrompt(raw: string | boolean | undefined, spec: string): string | undefined {
+  if (!raw) return undefined;
+  if (raw === true) return spec;
+  return interpolateEnv(raw);
+}
+
 function resolveTest(
   test: RawTestConfig,
   config: RawConfig,
@@ -163,9 +169,7 @@ function resolveTest(
     chatbotApiKey: chatbot.api_key ? interpolateEnv(chatbot.api_key) : undefined,
     chatbotModel: chatbot.model,
     chatbotSpec: chatbot.spec,
-    mockChatbotSystemPrompt: chatbot.mock_chatbot_system_prompt
-      ? interpolateEnv(chatbot.mock_chatbot_system_prompt)
-      : undefined,
+    mockChatbotSystemPrompt: resolveMockPrompt(chatbot.mock_chatbot_system_prompt, chatbot.spec),
     runnerIncludeChatbotSpec: config.runner?.include_chatbot_spec ?? true,
     runnerMode: mode,
     runnerModel,
