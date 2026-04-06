@@ -24,11 +24,15 @@ export async function buildFeedbackPrompt(db: BacktalkDB, testId: string): Promi
   if (rows.length === 0) return '';
 
   const entries = rows.map((r) => {
-    const verdict = r.action === 'approve' ? 'APPROVED' : 'REJECTED';
     const scores = `quality=${r.qualityScore}, fidelity=${r.fidelityScore}`;
-    const comment = r.comment ? ` — "${r.comment}"` : '';
-    return `- ${verdict} (${scores})${comment}\n  Reasoning was: quality="${r.qualityReasoning}" / fidelity="${r.fidelityReasoning}"`;
+    if (r.action === 'approve') {
+      const comment = r.comment ? ` — "${r.comment}"` : '';
+      return `- CORRECT (${scores})${comment}\n  Reasoning: quality="${r.qualityReasoning}" / fidelity="${r.fidelityReasoning}"`;
+    } else {
+      const comment = r.comment ? `\n  Correction: "${r.comment}"` : '';
+      return `- WRONG (${scores})\n  Wrong reasoning: quality="${r.qualityReasoning}" / fidelity="${r.fidelityReasoning}"${comment}`;
+    }
   });
 
-  return `Past judgments on this test (learn from approvals and rejections):\n${entries.join('\n')}`;
+  return `Consider the following feedback given on imperfect / wrong past evaluations:\n${entries.join('\n')}`;
 }
