@@ -33,6 +33,10 @@ export const feedback = sqliteTable('feedback', {
   testResultId: text('test_result_id')
     .notNull()
     .references(() => testResults.id),
-  comment: text('comment').notNull(),
+  type: text('type', { enum: ['judge', 'runner'] }).notNull(),
+  rawComment: text('raw_comment').notNull(),
+  comment: text('comment').notNull(), // interpreted/enriched for judge; same as raw for runner
+  qualityScoreCorrection: integer('quality_score_correction'),  // inferred by LLM, nullable
+  fidelityScoreCorrection: integer('fidelity_score_correction'), // inferred by LLM, nullable
   createdAt: integer('created_at').notNull(),
 });

@@ -15,6 +15,13 @@
       "when": 1775503704991,
       "tag": "0001_rich_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1775504263600,
+      "tag": "0002_clean_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }

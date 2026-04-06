@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { run, openDB, addFeedback, listRuns, getLastRunResults, listFeedback } from '@backtalk-ai/core';
+import { run, submitFeedback, openDB, listRuns, getLastRunResults, listFeedback } from '@backtalk-ai/core';
 import { createReporter } from './reporter.js';
 
 const program = new Command();
@@ -35,17 +35,23 @@ program
   .command('feedback <test-id> <comment>')
   .description('Correct the most recent judgment for a test')
   .option('-c, --config <path>', 'path to config file (to locate DB)', 'backtalk.yaml')
+  .option('--runner', 'feedback is about the runner, not the judge (skips LLM interpretation)')
   .action(async (testId: string, comment: string, opts) => {
-    const dbPath = path.join(path.dirname(path.resolve(opts.config)), '.backtalk.db');
-    const db = openDB(dbPath);
-    const id = await addFeedback(db, testId, comment);
+    const type = opts.runner ? 'runner' : 'judge';
 
-    if (!id) {
-      console.error(chalk.red(`No test result found for test "${testId}"`));
+    if (type === 'judge') {
+      console.log(chalk.dim('Interpreting feedback…'));
+    }
+
+    try {
+      await submitFeedback({ testId, comment, type, configPath: opts.config });
+    } catch (err: any) {
+      console.error(chalk.red(err.message));
       process.exit(1);
     }
 
-    console.log(`Feedback saved: ${chalk.bold(testId)} — "${comment}"`);
+    const label = type === 'judge' ? 'Judge feedback saved' : 'Runner feedback saved';
+    console.log(`${label}: ${chalk.bold(testId)} — "${comment}"`);
   });
 
 program

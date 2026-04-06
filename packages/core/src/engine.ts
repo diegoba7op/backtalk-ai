@@ -6,8 +6,10 @@ import { createChatbotClient } from './chatbot-client.js';
 import { runConversation } from './runner.js';
 import { judgeConversation } from './judge.js';
 import { buildFeedbackPrompt } from './feedback.js';
+import { interpretFeedback } from './feedback-interpreter.js';
 import { openDB } from './db/client.js';
-import { runs, testResults } from './db/schema.js';
+import { runs, testResults, feedback as feedbackTable } from './db/schema.js';
+import { getLatestTestResult, addJudgeFeedback, addRunnerFeedback } from './store.js';
 import type { RunnerMode, TestResult, Reporter } from './types.js';
 
 export interface RunOptions {
@@ -107,6 +109,41 @@ export async function run(options: RunOptions = {}): Promise<TestResult[]> {
 
   reporter?.onRunComplete?.(results);
   return results;
+}
+
+export interface SubmitFeedbackOptions {
+  testId: string;
+  comment: string;
+  type: 'judge' | 'runner';
+  configPath?: string;
+  dbPath?: string;
+}
+
+export async function submitFeedback(options: SubmitFeedbackOptions): Promise<void> {
+  const configPath = options.configPath ?? 'backtalk.yaml';
+  const dbPath = options.dbPath ?? path.join(path.dirname(path.resolve(configPath)), '.backtalk.db');
+  const db = openDB(dbPath);
+
+  const row = await getLatestTestResult(db, options.testId);
+  if (!row) throw new Error(`No test result found for test "${options.testId}"`);
+
+  if (options.type === 'runner') {
+    await addRunnerFeedback(db, row.id, options.comment);
+    return;
+  }
+
+  // Judge feedback: enrich with LLM before storing
+  const test: import('./types.js').ResolvedTest = JSON.parse(row.configSnapshot);
+  const conversation: import('./types.js').Conversation = { messages: JSON.parse(row.conversation) };
+  const judgeResult: import('./types.js').JudgeResult = {
+    quality: { score: row.qualityScore, reasoning: row.qualityReasoning },
+    fidelity: { score: row.fidelityScore, reasoning: row.fidelityReasoning },
+    passed: row.passed,
+  };
+
+  const llm = createLLMClient(test.judgeModel);
+  const interpreted = await interpretFeedback(options.comment, test, conversation, judgeResult, llm);
+  await addJudgeFeedback(db, row.id, options.comment, interpreted);
 }
 
 export { openDB };

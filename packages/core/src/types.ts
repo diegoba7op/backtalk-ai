@@ -64,8 +64,18 @@ export interface Feedback {
   testResultId: string;
   testId: string;
   suiteId: string | null;
-  comment: string;
+  type: 'judge' | 'runner';
+  rawComment: string;
+  comment: string; // interpreted/enriched for judge; same as rawComment for runner
+  qualityScoreCorrection: number | null;
+  fidelityScoreCorrection: number | null;
   createdAt: number;
+}
+
+export interface InterpretedFeedback {
+  comment: string;
+  qualityScoreCorrection: number | null;
+  fidelityScoreCorrection: number | null;
 }
 
 export interface StoredTestResult {

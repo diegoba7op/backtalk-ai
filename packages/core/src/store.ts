@@ -5,29 +5,53 @@ import { eq, desc } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { runs, testResults, feedback } from './db/schema.js';
 import type { BacktalkDB } from './db/client.js';
-import type { Feedback, StoredTestResult, Run } from './types.js';
+import type { Feedback, InterpretedFeedback, StoredTestResult, Run } from './types.js';
 
-// Add feedback for the most recent test result matching testId.
-// Returns the created feedback id, or null if no matching test result found.
-export async function addFeedback(
-  db: BacktalkDB,
-  testId: string,
-  comment: string
-): Promise<string | null> {
-  const [result] = await db
-    .select({ id: testResults.id })
+// Fetches the most recent test result row for a given testId.
+export async function getLatestTestResult(db: BacktalkDB, testId: string) {
+  const [row] = await db
+    .select()
     .from(testResults)
     .where(eq(testResults.testId, testId))
     .orderBy(desc(testResults.createdAt))
     .limit(1);
+  return row ?? null;
+}
 
-  if (!result) return null;
-
+export async function addJudgeFeedback(
+  db: BacktalkDB,
+  testResultId: string,
+  rawComment: string,
+  interpreted: InterpretedFeedback
+): Promise<string> {
   const id = ulid();
   await db.insert(feedback).values({
     id,
-    testResultId: result.id,
-    comment,
+    testResultId,
+    type: 'judge',
+    rawComment,
+    comment: interpreted.comment,
+    qualityScoreCorrection: interpreted.qualityScoreCorrection,
+    fidelityScoreCorrection: interpreted.fidelityScoreCorrection,
+    createdAt: Date.now(),
+  });
+  return id;
+}
+
+export async function addRunnerFeedback(
+  db: BacktalkDB,
+  testResultId: string,
+  rawComment: string
+): Promise<string> {
+  const id = ulid();
+  await db.insert(feedback).values({
+    id,
+    testResultId,
+    type: 'runner',
+    rawComment,
+    comment: rawComment,
+    qualityScoreCorrection: null,
+    fidelityScoreCorrection: null,
     createdAt: Date.now(),
   });
   return id;
@@ -84,7 +108,11 @@ export async function listFeedback(db: BacktalkDB, limit = 20): Promise<Feedback
       testResultId: feedback.testResultId,
       testId: testResults.testId,
       suiteId: testResults.suiteId,
+      type: feedback.type,
+      rawComment: feedback.rawComment,
       comment: feedback.comment,
+      qualityScoreCorrection: feedback.qualityScoreCorrection,
+      fidelityScoreCorrection: feedback.fidelityScoreCorrection,
       createdAt: feedback.createdAt,
     })
     .from(feedback)
