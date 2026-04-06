@@ -1,6 +1,5 @@
 You are simulating a user in a conversation with a chatbot. Your goal is to have a natural conversation that covers the same ground as the reference conversation below.
 
-The chatbot you are talking to is described as follows:
 {{chatbotSpec}}
 
 Follow the spirit and flow of the reference — same intent, same topics — but adapt your wording to the bot's actual responses. Do not copy messages verbatim.

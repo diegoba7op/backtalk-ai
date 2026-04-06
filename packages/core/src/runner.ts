@@ -15,8 +15,12 @@ function buildRunnerSystemPrompt(test: ResolvedTest): string {
     .filter(Boolean)
     .join('\n');
 
+  const specBlock = test.runnerIncludeChatbotSpec
+    ? `The chatbot you are talking to is described as follows:\n${test.chatbotSpec}\n`
+    : '';
+
   return runnerPromptTemplate
-    .replace('{{chatbotSpec}}', test.chatbotSpec)
+    .replace('{{chatbotSpec}}', specBlock)
     .replace('{{reference}}', reference)
     .replace(
       '{{runnerInstructions}}',

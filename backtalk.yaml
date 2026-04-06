@@ -6,9 +6,9 @@ chatbots:
       Customer support bot for an e-commerce store.
       Should be helpful, empathetic, and accurate about policies.
       Refunds are accepted within 30 days of purchase with an order number.
-    # system_prompt is only needed when pointing at a raw API with no pre-deployed bot.
+    # mock_chatbot_system_prompt is only needed when pointing at a raw API with no pre-deployed bot.
     # Real deployed bots already have their system prompt baked in — omit this field for those.
-    system_prompt: |
+    mock_chatbot_system_prompt: |
       You are a customer support bot for an e-commerce store.
       Be helpful, empathetic, and accurate about policies.
       Refunds are accepted within 30 days of purchase with an order number.
@@ -18,6 +18,8 @@ chatbots:
 
 runner:
   mode: guided
+  # include_chatbot_spec: true  # gives the runner more context about what it's simulating against,
+  #                               but increases token usage per turn. Default: true.
 
 threshold: 3
 

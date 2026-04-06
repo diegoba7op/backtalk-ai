@@ -9,7 +9,7 @@ interface RawChatbotConfig {
   url: string;
   model?: string;
   api_key?: string;
-  system_prompt?: string;  // injected as system message to the API; omit for already-deployed bots
+  mock_chatbot_system_prompt?: string;  // injected as system message to the API; omit for already-deployed bots
 }
 
 type RawThreshold = number | { quality: number; fidelity: number };
@@ -46,7 +46,13 @@ interface RawConfig {
   judge_model?: string;
   chatbots?: Record<string, RawChatbotConfig>;
   judge?: { model?: string };
-  runner?: { mode?: RunnerMode; model?: string };
+  runner?: {
+    mode?: RunnerMode;
+    model?: string;
+    // Include the chatbot spec in the runner's system prompt for more context.
+    // Improves simulation accuracy but increases token usage. Default: true.
+    include_chatbot_spec?: boolean;
+  };
   threshold?: RawThreshold;
   suites?: RawSuiteConfig[];
   tests?: RawTestConfig[];
@@ -157,7 +163,10 @@ function resolveTest(
     chatbotApiKey: chatbot.api_key ? interpolateEnv(chatbot.api_key) : undefined,
     chatbotModel: chatbot.model,
     chatbotSpec: chatbot.spec,
-    chatbotSystemPrompt: chatbot.system_prompt ? interpolateEnv(chatbot.system_prompt) : undefined,
+    mockChatbotSystemPrompt: chatbot.mock_chatbot_system_prompt
+      ? interpolateEnv(chatbot.mock_chatbot_system_prompt)
+      : undefined,
+    runnerIncludeChatbotSpec: config.runner?.include_chatbot_spec ?? true,
     runnerMode: mode,
     runnerModel,
     judgeModel,

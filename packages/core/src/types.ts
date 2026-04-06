@@ -23,8 +23,9 @@ export interface ResolvedTest {
   chatbotUrl: string;
   chatbotApiKey?: string;
   chatbotModel?: string;
-  chatbotSpec: string;           // describes what the bot does — used by runner + judge
-  chatbotSystemPrompt?: string;  // injected as system message to the API — only for raw/undeployed bots
+  chatbotSpec: string;                 // describes what the bot does — used by runner + judge
+  mockChatbotSystemPrompt?: string;    // injected as system message to the API — only for raw/undeployed bots
+  runnerIncludeChatbotSpec: boolean;   // whether to include chatbotSpec in runner prompt (more context, more tokens)
   runnerMode: RunnerMode;
   runnerModel: string;
   judgeModel: string;
