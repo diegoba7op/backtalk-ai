@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm -r build",
-    "test": "vitest run"
+    "test": "pnpm -r test"
   },
   "dependencies": {
     "@backtalk-ai/cli": "workspace:*"
