@@ -18,7 +18,7 @@ function copyDir(src: string, dest: string) {
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['esm'],
-  dts: true,
+  dts: { compilerOptions: { composite: false } },
   loader: { '.md': 'text' },
   onSuccess: async () => {
     // Copy migration files (SQL + meta/) into dist so migrate() can find them at runtime
