@@ -98,7 +98,7 @@ packages/core/src/
 ├── prompts/
 │   ├── runner.md                   # Runner system prompt template
 │   ├── judge.md                    # Judge system prompt template
-│   ├── feedback-interpreter.md     # Interpreter prompt for judge feedback
+│   ├── feedback-interpreter-judge.md     # Interpreter prompt for judge feedback
 │   └── feedback-interpreter-runner.md  # Interpreter prompt for runner feedback
 └── index.ts                        # Public API barrel export
 ```
