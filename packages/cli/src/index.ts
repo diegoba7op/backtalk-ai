@@ -32,24 +32,24 @@ program
   });
 
 program
-  .command('feedback <test-id> <comment>')
-  .description('Correct the most recent judgment for a test')
+  .command('feedback <result-id> <comment>')
+  .description('Give feedback on a specific test result (use result IDs from backtalk results)')
   .option('-c, --config <path>', 'path to config file (to locate DB)', 'backtalk.yaml')
-  .option('--runner', 'feedback is about the runner, not the judge (skips LLM interpretation)')
-  .action(async (testId: string, comment: string, opts) => {
+  .option('--runner', 'feedback is about the runner, not the judge')
+  .action(async (resultId: string, comment: string, opts) => {
     const type = opts.runner ? 'runner' : 'judge';
 
     console.log(chalk.dim('Interpreting feedback…'));
 
     try {
-      await submitFeedback({ testId, comment, type, configPath: opts.config });
+      await submitFeedback({ resultId, comment, type, configPath: opts.config });
     } catch (err: any) {
       console.error(chalk.red(err.message));
       process.exit(1);
     }
 
     const label = type === 'judge' ? 'Judge feedback saved' : 'Runner feedback saved';
-    console.log(`${label}: ${chalk.bold(testId)} — "${comment}"`);
+    console.log(`${label}: ${chalk.bold(resultId)} — "${comment}"`);
   });
 
 program
@@ -67,11 +67,12 @@ program
     }
 
     for (const r of rows) {
-      const prefix = r.suiteId ? `${r.suiteId}:${r.testId}` : r.testId;
+      const prefix = r.suiteId ? `${r.suiteId}/${r.testId}` : r.testId;
       const status = r.passed ? chalk.green('PASS') : chalk.red('FAIL');
       console.log(
         `  ${chalk.bold(prefix.padEnd(35))} ${status}  quality: ${r.qualityScore}  fidelity: ${r.fidelityScore}`
       );
+      console.log(chalk.dim(`    result-id: ${r.id}`));
       if (!r.passed) {
         console.log(chalk.dim(`    quality:  ${r.qualityReasoning}`));
         console.log(chalk.dim(`    fidelity: ${r.fidelityReasoning}`));

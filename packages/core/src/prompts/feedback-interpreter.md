@@ -1,7 +1,3 @@
-You are helping improve an LLM judge that evaluates chatbot conversations.
-
-A human reviewer gave feedback on a judgment that was wrong. Your job is to interpret their comment in full context and produce structured feedback that will help the judge do better next time.
-
 Chatbot spec:
 {{chatbotSpec}}
 

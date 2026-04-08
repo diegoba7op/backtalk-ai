@@ -9,7 +9,7 @@ import { buildFeedbackPrompt } from './feedback.js';
 import { interpretFeedback } from './feedback-interpreter.js';
 import { openDB } from './db/client.js';
 import { runs, testResults, feedback as feedbackTable } from './db/schema.js';
-import { getLatestTestResult, addJudgeFeedback, addRunnerFeedback } from './store.js';
+import { getTestResultById, addJudgeFeedback, addRunnerFeedback } from './store.js';
 import type { RunnerMode, TestResult, Reporter } from './types.js';
 
 export interface RunOptions {
@@ -112,7 +112,7 @@ export async function run(options: RunOptions = {}): Promise<TestResult[]> {
 }
 
 export interface SubmitFeedbackOptions {
-  testId: string;
+  resultId: string;
   comment: string;
   type: 'judge' | 'runner';
   configPath?: string;
@@ -124,8 +124,8 @@ export async function submitFeedback(options: SubmitFeedbackOptions): Promise<vo
   const dbPath = options.dbPath ?? path.join(path.dirname(path.resolve(configPath)), '.backtalk.db');
   const db = openDB(dbPath);
 
-  const row = await getLatestTestResult(db, options.testId);
-  if (!row) throw new Error(`No test result found for test "${options.testId}"`);
+  const row = await getTestResultById(db, options.resultId);
+  if (!row) throw new Error(`No test result found with id "${options.resultId}"`);
 
   const test: import('./types.js').ResolvedTest = JSON.parse(row.configSnapshot);
   const conversation: import('./types.js').Conversation = { messages: JSON.parse(row.conversation) };

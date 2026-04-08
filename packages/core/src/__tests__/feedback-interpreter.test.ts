@@ -94,15 +94,22 @@ describe('interpretFeedback', () => {
       expect(vi.mocked(mockLLM.chat).mock.calls[0][0].model).toBe('claude-opus-4-6');
     });
 
-    it('sends no system prompt (single user message)', async () => {
+    it('sends a system prompt describing the judge improvement role', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
       await interpretFeedback('judge', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
       const callArgs = vi.mocked(mockLLM.chat).mock.calls[0][0];
-      expect(callArgs.system).toBeUndefined();
+      expect(callArgs.system).toContain('LLM judge');
     });
   });
 
   describe('runner type', () => {
+    it('sends a system prompt describing the runner improvement role', async () => {
+      vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
+      await interpretFeedback('runner', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      const callArgs = vi.mocked(mockLLM.chat).mock.calls[0][0];
+      expect(callArgs.system).toContain('LLM runner');
+    });
+
     it('parses comment from response', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(
         makeInterpreterResponse({ comment: 'Runner was too aggressive in turn 2.' })

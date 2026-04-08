@@ -3,6 +3,16 @@ import type { ResolvedTest, Conversation, JudgeResult, InterpretedFeedback } fro
 import judgePrompt from './prompts/feedback-interpreter.md';
 import runnerPrompt from './prompts/feedback-interpreter-runner.md';
 
+const JUDGE_SYSTEM =
+  'You are helping improve an LLM judge that evaluates chatbot conversations. ' +
+  'A human reviewer gave feedback on a judgment that was wrong. ' +
+  'Your job is to interpret their comment in full context and produce structured feedback that will help the judge do better next time.';
+
+const RUNNER_SYSTEM =
+  'You are helping improve an LLM runner that plays the user role in chatbot test conversations. ' +
+  'A human reviewer gave feedback on how the runner conducted a conversation. ' +
+  'Your job is to interpret their comment in full context and produce a clear, specific description of what the runner did wrong, referencing the actual exchanges where relevant.';
+
 export async function interpretFeedback(
   type: 'judge' | 'runner',
   rawComment: string,
@@ -39,8 +49,11 @@ export async function interpretFeedback(
       .replace('{{rawComment}}', rawComment);
   }
 
+  const system = type === 'judge' ? JUDGE_SYSTEM : RUNNER_SYSTEM;
+
   const response = await llm.chat({
     model: test.judgeModel,
+    system,
     messages: [{ role: 'user', content: prompt.trim() }],
   });
 

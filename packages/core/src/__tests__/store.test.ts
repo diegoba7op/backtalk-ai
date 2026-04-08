@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  getTestResultById,
   getLatestTestResult,
   addJudgeFeedback,
   addRunnerFeedback,
@@ -27,6 +28,26 @@ describe('store', () => {
 
   beforeEach(() => {
     db = openTestDB();
+  });
+
+  describe('getTestResultById', () => {
+    it('returns null for unknown id', async () => {
+      expect(await getTestResultById(db, 'nonexistent')).toBeNull();
+    });
+
+    it('returns the row with matching id', async () => {
+      const runId = insertRun(db);
+      const id = insertTestResult(db, runId, 'test1');
+      const row = await getTestResultById(db, id);
+      expect(row).not.toBeNull();
+      expect(row!.id).toBe(id);
+    });
+
+    it('does not return a row with a different id', async () => {
+      const runId = insertRun(db);
+      insertTestResult(db, runId, 'test1', { id: 'id-a' });
+      expect(await getTestResultById(db, 'id-b')).toBeNull();
+    });
   });
 
   describe('getLatestTestResult', () => {

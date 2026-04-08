@@ -7,6 +7,16 @@ import { runs, testResults, feedback } from './db/schema.js';
 import type { BacktalkDB } from './db/client.js';
 import type { Feedback, InterpretedFeedback, StoredTestResult, Run } from './types.js';
 
+// Fetches a test result row by its primary key.
+export async function getTestResultById(db: BacktalkDB, id: string) {
+  const [row] = await db
+    .select()
+    .from(testResults)
+    .where(eq(testResults.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
 // Fetches the most recent test result row for a given testId.
 export async function getLatestTestResult(db: BacktalkDB, testId: string) {
   const [row] = await db
