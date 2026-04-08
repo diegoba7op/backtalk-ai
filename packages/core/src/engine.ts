@@ -5,11 +5,12 @@ import { createLLMClient } from './llm.js';
 import { createChatbotClient } from './chatbot-client.js';
 import { runConversation } from './runner.js';
 import { judgeConversation } from './judge.js';
-import { buildFeedbackPrompt } from './feedback.js';
+import { buildJudgeFeedbackPrompt, buildRunnerFeedbackPrompt } from './feedback.js';
 import { interpretFeedback } from './feedback-interpreter.js';
 import { openDB } from './db/client.js';
 import { runs, testResults, feedback as feedbackTable } from './db/schema.js';
 import { getTestResultById, addJudgeFeedback, addRunnerFeedback } from './store.js';
+import type { ResolvedTest } from './types.js';
 import type { RunnerMode, TestResult, Reporter } from './types.js';
 
 export interface RunOptions {
@@ -60,16 +61,18 @@ export async function run(options: RunOptions = {}): Promise<TestResult[]> {
       systemPrompt: test.mockChatbotSystemPrompt,
     });
 
+    const runnerFeedback = await buildRunnerFeedbackPrompt(db, test.id);
     const conversation = await runConversation(
       test,
       llm,
       chatbot,
-      reporter?.onTurn?.bind(reporter)
+      reporter?.onTurn?.bind(reporter),
+      runnerFeedback
     );
 
     const judgeLlm = createLLMClient(test.judgeModel);
-    const feedbackContext = await buildFeedbackPrompt(db, test.id);
-    const judgeResult = await judgeConversation(test, conversation, judgeLlm, feedbackContext);
+    const judgeFeedback = await buildJudgeFeedbackPrompt(db, test.id);
+    const judgeResult = await judgeConversation(test, conversation, judgeLlm, judgeFeedback);
 
     const resultId = ulid();
     await db.insert(testResults).values({
@@ -127,21 +130,14 @@ export async function submitFeedback(options: SubmitFeedbackOptions): Promise<vo
   const row = await getTestResultById(db, options.resultId);
   if (!row) throw new Error(`No test result found with id "${options.resultId}"`);
 
-  const test: import('./types.js').ResolvedTest = JSON.parse(row.configSnapshot);
-  const conversation: import('./types.js').Conversation = { messages: JSON.parse(row.conversation) };
-  const judgeResult: import('./types.js').JudgeResult = {
-    quality: { score: row.qualityScore, reasoning: row.qualityReasoning },
-    fidelity: { score: row.fidelityScore, reasoning: row.fidelityReasoning },
-    passed: row.passed,
-  };
-
-  const llm = createLLMClient(test.judgeModel);
-  const interpreted = await interpretFeedback(options.type, options.comment, test, conversation, judgeResult, llm);
+  const test: ResolvedTest = JSON.parse(row.configSnapshot);
+  const llm = createLLMClient(test.interpreterModel);
+  const interpreted = await interpretFeedback(options.type, options.comment, test, options.resultId, db, llm);
 
   if (options.type === 'runner') {
-    await addRunnerFeedback(db, row.id, options.comment, interpreted);
+    await addRunnerFeedback(db, options.resultId, options.comment, interpreted);
   } else {
-    await addJudgeFeedback(db, row.id, options.comment, interpreted);
+    await addJudgeFeedback(db, options.resultId, options.comment, interpreted);
   }
 }
 

@@ -11,6 +11,7 @@ const baseTest: ResolvedTest = {
   runnerMode: 'guided',
   runnerModel: 'gpt-4o-mini',
   judgeModel: 'gpt-4o-mini',
+  interpreterModel: 'gpt-4o-mini',
   threshold: { quality: 3, fidelity: 3 },
   reference: [{ user: 'hello' }, { bot: 'Hi! How can I help you today?' }],
 };

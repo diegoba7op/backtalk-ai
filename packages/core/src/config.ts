@@ -22,6 +22,7 @@ interface RawTestConfig {
   model?: string;
   runner_model?: string;
   judge_model?: string;
+  interpreter_model?: string;
   threshold?: RawThreshold;
   conversation: ReferenceTurn[];
   judge?: string;
@@ -36,6 +37,7 @@ interface RawSuiteConfig {
   model?: string;
   runner_model?: string;
   judge_model?: string;
+  interpreter_model?: string;
   threshold?: RawThreshold;
   tests: RawTestConfig[];
 }
@@ -44,8 +46,10 @@ interface RawConfig {
   model?: string;
   runner_model?: string;
   judge_model?: string;
+  interpreter_model?: string;
   chatbots?: Record<string, RawChatbotConfig>;
   judge?: { model?: string };
+  interpreter?: { model?: string };
   runner?: {
     mode?: RunnerMode;
     model?: string;
@@ -150,6 +154,16 @@ function resolveTest(
     config.model ??
     'gpt-4o-mini';
 
+  const interpreterModel =
+    test.interpreter_model ??
+    test.model ??
+    suite?.interpreter_model ??
+    suite?.model ??
+    config.interpreter?.model ??
+    config.interpreter_model ??
+    config.model ??
+    'gpt-4o-mini';
+
   // Mode hierarchy: CLI filter > test > suite > global runner > default
   const mode: RunnerMode =
     filters.mode ??
@@ -174,6 +188,7 @@ function resolveTest(
     runnerMode: mode,
     runnerModel,
     judgeModel,
+    interpreterModel,
     threshold,
     reference: test.conversation,
     judgeInstructions: test.judge,

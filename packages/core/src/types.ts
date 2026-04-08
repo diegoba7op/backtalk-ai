@@ -29,6 +29,7 @@ export interface ResolvedTest {
   runnerMode: RunnerMode;
   runnerModel: string;
   judgeModel: string;
+  interpreterModel: string;
   threshold: { quality: number; fidelity: number };
   reference: ReferenceTurn[];
   judgeInstructions?: string;

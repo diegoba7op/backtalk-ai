@@ -53,10 +53,11 @@ describe('resolveTests', () => {
   });
 
   describe('model hierarchy', () => {
-    it('defaults to gpt-4o-mini for both runner and judge', () => {
+    it('defaults to gpt-4o-mini for runner, judge, and interpreter', () => {
       const [test] = resolveTests(baseConfig);
       expect(test.runnerModel).toBe('gpt-4o-mini');
       expect(test.judgeModel).toBe('gpt-4o-mini');
+      expect(test.interpreterModel).toBe('gpt-4o-mini');
     });
 
     it('global model applies to both', () => {
@@ -100,6 +101,16 @@ describe('resolveTests', () => {
       });
       expect(test.runnerModel).toBe('gpt-4o-mini');
       expect(test.judgeModel).toBe('claude-opus-4-6');
+    });
+
+    it('interpreter_model resolves independently', () => {
+      const [test] = resolveTests({
+        ...baseConfig,
+        suites: [{ ...baseSuite, tests: [{ ...baseTest, interpreter_model: 'claude-opus-4-6' }] }],
+      });
+      expect(test.interpreterModel).toBe('claude-opus-4-6');
+      expect(test.judgeModel).toBe('gpt-4o-mini');
+      expect(test.runnerModel).toBe('gpt-4o-mini');
     });
 
     it('runner section model only affects runner', () => {

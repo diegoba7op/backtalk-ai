@@ -14,4 +14,6 @@ Reference conversation:
 
 {{runnerInstructions}}
 
+{{feedbackContext}}
+
 Start by sending the first user message. Do not greet or introduce yourself — just send the message.

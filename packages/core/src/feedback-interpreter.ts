@@ -1,17 +1,23 @@
 import type { LLMClient } from './llm.js';
-import type { ResolvedTest, Conversation, JudgeResult, InterpretedFeedback } from './types.js';
-import judgePrompt from './prompts/feedback-interpreter.md';
+import type { BacktalkDB } from './db/client.js';
+import type { ResolvedTest, Conversation, InterpretedFeedback } from './types.js';
+import { getTestResultById } from './store.js';
+import judgePrompt from './prompts/feedback-interpreter-judge.md';
 import runnerPrompt from './prompts/feedback-interpreter-runner.md';
-
 
 export async function interpretFeedback(
   type: 'judge' | 'runner',
   rawComment: string,
   test: ResolvedTest,
-  conversation: Conversation,
-  judgeResult: JudgeResult,
+  resultId: string,
+  db: BacktalkDB,
   llm: LLMClient
 ): Promise<InterpretedFeedback> {
+  const row = await getTestResultById(db, resultId);
+  if (!row) throw new Error(`No test result found with id "${resultId}"`);
+
+  const conversation: Conversation = { messages: JSON.parse(row.conversation) };
+
   const reference = test.reference
     .map((t) => (t.user ? `User: ${t.user}` : `Bot: ${t.bot}`))
     .filter(Boolean)
@@ -27,10 +33,10 @@ export async function interpretFeedback(
       .replace('{{chatbotSpec}}', test.chatbotSpec)
       .replace('{{reference}}', reference)
       .replace('{{conversation}}', conversationText)
-      .replace('{{qualityScore}}', String(judgeResult.quality.score))
-      .replace('{{qualityReasoning}}', judgeResult.quality.reasoning)
-      .replace('{{fidelityScore}}', String(judgeResult.fidelity.score))
-      .replace('{{fidelityReasoning}}', judgeResult.fidelity.reasoning)
+      .replace('{{qualityScore}}', String(row.qualityScore))
+      .replace('{{qualityReasoning}}', row.qualityReasoning)
+      .replace('{{fidelityScore}}', String(row.fidelityScore))
+      .replace('{{fidelityReasoning}}', row.fidelityReasoning)
       .replace('{{rawComment}}', rawComment);
   } else {
     prompt = runnerPrompt
@@ -41,7 +47,7 @@ export async function interpretFeedback(
   }
 
   const response = await llm.chat({
-    model: test.judgeModel,
+    model: test.interpreterModel,
     messages: [{ role: 'user', content: prompt.trim() }],
   });
 

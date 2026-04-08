@@ -5,7 +5,7 @@ import runnerPromptTemplate from './prompts/runner.md';
 
 const DONE_SENTINEL = '<<<DONE>>>';
 
-function buildRunnerSystemPrompt(test: ResolvedTest): string {
+function buildRunnerSystemPrompt(test: ResolvedTest, feedbackContext = ''): string {
   const reference = test.reference
     .map((turn) => {
       if (turn.user) return `User: ${turn.user}`;
@@ -26,6 +26,7 @@ function buildRunnerSystemPrompt(test: ResolvedTest): string {
       '{{runnerInstructions}}',
       test.runnerInstructions ? `Additional instructions: ${test.runnerInstructions}` : ''
     )
+    .replace('{{feedbackContext}}', feedbackContext)
     .trim();
 }
 
@@ -33,7 +34,8 @@ export async function runConversation(
   test: ResolvedTest,
   llm: LLMClient,
   chatbot: ChatbotClient,
-  onTurn?: (user: string, bot: string) => void
+  onTurn?: (user: string, bot: string) => void,
+  feedbackContext = ''
 ): Promise<Conversation> {
   const maxTurns = test.reference.filter((t) => t.user).length * 2;
   const conversationMessages: Message[] = [];
@@ -49,7 +51,7 @@ export async function runConversation(
   for (let turn = 0; turn < maxTurns; turn++) {
     const runnerOutput = await llm.chat({
       model: test.runnerModel,
-      system: buildRunnerSystemPrompt(test),
+      system: buildRunnerSystemPrompt(test, feedbackContext),
       messages: runnerHistory,
     });
 

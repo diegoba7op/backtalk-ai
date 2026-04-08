@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { interpretFeedback } from '../feedback-interpreter.js';
-import type { ResolvedTest, Conversation, JudgeResult, LLMClient } from '../index.js';
+import type { ResolvedTest, LLMClient } from '../index.js';
+import { openTestDB, insertRun, insertTestResult, type TestDB } from './helpers.js';
 
 const baseTest: ResolvedTest = {
   id: 'suite1/test1',
@@ -11,6 +12,7 @@ const baseTest: ResolvedTest = {
   runnerMode: 'guided',
   runnerModel: 'gpt-4o-mini',
   judgeModel: 'claude-opus-4-6',
+  interpreterModel: 'claude-opus-4-6',
   threshold: { quality: 3, fidelity: 3 },
   reference: [
     { user: 'I want a refund' },
@@ -18,18 +20,10 @@ const baseTest: ResolvedTest = {
   ],
 };
 
-const baseConversation: Conversation = {
-  messages: [
-    { role: 'user', content: 'I want a refund' },
-    { role: 'assistant', content: 'Please provide your order ID.' },
-  ],
-};
-
-const baseJudgeResult: JudgeResult = {
-  quality: { score: 2, reasoning: 'response was too terse' },
-  fidelity: { score: 3, reasoning: 'followed the flow' },
-  passed: false,
-};
+const conversationMessages = [
+  { role: 'user' as const, content: 'I want a refund' },
+  { role: 'assistant' as const, content: 'Please provide your order ID.' },
+];
 
 function makeInterpreterResponse(data: object) {
   return `\`\`\`json\n${JSON.stringify(data)}\n\`\`\``;
@@ -37,9 +31,21 @@ function makeInterpreterResponse(data: object) {
 
 describe('interpretFeedback', () => {
   const mockLLM = { chat: vi.fn() } as unknown as LLMClient;
+  let db: TestDB;
+  let resultId: string;
 
   beforeEach(() => {
     vi.mocked(mockLLM.chat).mockReset();
+    db = openTestDB();
+    const runId = insertRun(db);
+    resultId = insertTestResult(db, runId, 'suite1/test1', {
+      qualityScore: 2,
+      fidelityScore: 3,
+      qualityReasoning: 'response was too terse',
+      fidelityReasoning: 'followed the flow',
+      passed: false,
+      conversation: JSON.stringify(conversationMessages),
+    });
   });
 
   describe('judge type', () => {
@@ -51,59 +57,64 @@ describe('interpretFeedback', () => {
           fidelity_score_correction: 2,
         })
       );
-      const result = await interpretFeedback('judge', 'bot was cold', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      const result = await interpretFeedback('judge', 'bot was cold', baseTest, resultId, db, mockLLM);
       expect(result.comment).toBe('The bot skipped the empathy step from the reference.');
       expect(result.qualityScoreCorrection).toBe(4);
       expect(result.fidelityScoreCorrection).toBe(2);
     });
 
     it('returns null for missing score corrections', async () => {
-      vi.mocked(mockLLM.chat).mockResolvedValue(
-        makeInterpreterResponse({ comment: 'general issue' })
-      );
-      const result = await interpretFeedback('judge', 'general issue', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'general issue' }));
+      const result = await interpretFeedback('judge', 'general issue', baseTest, resultId, db, mockLLM);
       expect(result.qualityScoreCorrection).toBeNull();
       expect(result.fidelityScoreCorrection).toBeNull();
     });
 
     it('includes chatbot spec in prompt', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
-      await interpretFeedback('judge', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      await interpretFeedback('judge', 'raw', baseTest, resultId, db, mockLLM);
       const { messages } = vi.mocked(mockLLM.chat).mock.calls[0][0];
       expect(messages[0].content).toContain(baseTest.chatbotSpec);
     });
 
-    it('includes wrong scores in prompt', async () => {
+    it('fetches scores from the result row', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
-      await interpretFeedback('judge', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      await interpretFeedback('judge', 'raw', baseTest, resultId, db, mockLLM);
       const { messages } = vi.mocked(mockLLM.chat).mock.calls[0][0];
-      expect(messages[0].content).toContain('2'); // quality score
-      expect(messages[0].content).toContain('too terse'); // quality reasoning
+      expect(messages[0].content).toContain('2'); // quality score from DB row
+      expect(messages[0].content).toContain('too terse'); // quality reasoning from DB row
+    });
+
+    it('fetches conversation from the result row', async () => {
+      vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
+      await interpretFeedback('judge', 'raw', baseTest, resultId, db, mockLLM);
+      const { messages } = vi.mocked(mockLLM.chat).mock.calls[0][0];
+      expect(messages[0].content).toContain('I want a refund');
+      expect(messages[0].content).toContain('Please provide your order ID.');
     });
 
     it('includes raw comment in prompt', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
-      await interpretFeedback('judge', 'user said the bot was cold and unhelpful', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      await interpretFeedback('judge', 'user said the bot was cold and unhelpful', baseTest, resultId, db, mockLLM);
       const { messages } = vi.mocked(mockLLM.chat).mock.calls[0][0];
       expect(messages[0].content).toContain('user said the bot was cold and unhelpful');
     });
 
-    it('uses judgeModel from test config', async () => {
+    it('uses interpreterModel from test config', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
-      await interpretFeedback('judge', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      await interpretFeedback('judge', 'raw', baseTest, resultId, db, mockLLM);
       expect(vi.mocked(mockLLM.chat).mock.calls[0][0].model).toBe('claude-opus-4-6');
     });
 
     it('sends no system prompt — role description is in the user message', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
-      await interpretFeedback('judge', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
-      const callArgs = vi.mocked(mockLLM.chat).mock.calls[0][0];
-      expect(callArgs.system).toBeUndefined();
+      await interpretFeedback('judge', 'raw', baseTest, resultId, db, mockLLM);
+      expect(vi.mocked(mockLLM.chat).mock.calls[0][0].system).toBeUndefined();
     });
 
     it('includes role description in the user message', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
-      await interpretFeedback('judge', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      await interpretFeedback('judge', 'raw', baseTest, resultId, db, mockLLM);
       const { messages } = vi.mocked(mockLLM.chat).mock.calls[0][0];
       expect(messages[0].content).toContain('LLM judge');
     });
@@ -112,7 +123,7 @@ describe('interpretFeedback', () => {
   describe('runner type', () => {
     it('includes role description in the user message', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
-      await interpretFeedback('runner', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      await interpretFeedback('runner', 'raw', baseTest, resultId, db, mockLLM);
       const { messages } = vi.mocked(mockLLM.chat).mock.calls[0][0];
       expect(messages[0].content).toContain('LLM runner');
     });
@@ -121,23 +132,13 @@ describe('interpretFeedback', () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(
         makeInterpreterResponse({ comment: 'Runner was too aggressive in turn 2.' })
       );
-      const result = await interpretFeedback('runner', 'too aggressive', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      const result = await interpretFeedback('runner', 'too aggressive', baseTest, resultId, db, mockLLM);
       expect(result.comment).toBe('Runner was too aggressive in turn 2.');
     });
 
-    it('returns null score corrections for runner type', async () => {
-      vi.mocked(mockLLM.chat).mockResolvedValue(
-        makeInterpreterResponse({ comment: 'ok', quality_score_correction: 5 })
-      );
-      // Runner prompt doesn't ask for scores — any score fields in response are irrelevant
-      // The result should still include whatever the LLM returns
-      const result = await interpretFeedback('runner', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
-      expect(result.comment).toBe('ok');
-    });
-
-    it('includes actual conversation in prompt', async () => {
+    it('fetches conversation from the result row', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
-      await interpretFeedback('runner', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      await interpretFeedback('runner', 'raw', baseTest, resultId, db, mockLLM);
       const { messages } = vi.mocked(mockLLM.chat).mock.calls[0][0];
       expect(messages[0].content).toContain('I want a refund');
       expect(messages[0].content).toContain('Please provide your order ID.');
@@ -145,10 +146,16 @@ describe('interpretFeedback', () => {
   });
 
   describe('error handling', () => {
+    it('throws when result id does not exist', async () => {
+      await expect(
+        interpretFeedback('judge', 'raw', baseTest, 'nonexistent-id', db, mockLLM)
+      ).rejects.toThrow('No test result found');
+    });
+
     it('throws when response has no JSON fence', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue('I cannot interpret this feedback.');
       await expect(
-        interpretFeedback('judge', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM)
+        interpretFeedback('judge', 'raw', baseTest, resultId, db, mockLLM)
       ).rejects.toThrow('missing JSON block');
     });
   });
