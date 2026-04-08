@@ -1,3 +1,7 @@
+You are helping improve an LLM runner that plays the user role in chatbot test conversations.
+
+A human reviewer gave feedback on how the runner conducted a conversation. Your job is to interpret their comment in full context and produce a clear, specific description of what the runner did wrong, referencing the actual exchanges where relevant.
+
 Chatbot spec:
 {{chatbotSpec}}
 

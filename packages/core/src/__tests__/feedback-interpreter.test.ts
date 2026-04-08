@@ -94,20 +94,27 @@ describe('interpretFeedback', () => {
       expect(vi.mocked(mockLLM.chat).mock.calls[0][0].model).toBe('claude-opus-4-6');
     });
 
-    it('sends a system prompt describing the judge improvement role', async () => {
+    it('sends no system prompt — role description is in the user message', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
       await interpretFeedback('judge', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
       const callArgs = vi.mocked(mockLLM.chat).mock.calls[0][0];
-      expect(callArgs.system).toContain('LLM judge');
+      expect(callArgs.system).toBeUndefined();
+    });
+
+    it('includes role description in the user message', async () => {
+      vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
+      await interpretFeedback('judge', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
+      const { messages } = vi.mocked(mockLLM.chat).mock.calls[0][0];
+      expect(messages[0].content).toContain('LLM judge');
     });
   });
 
   describe('runner type', () => {
-    it('sends a system prompt describing the runner improvement role', async () => {
+    it('includes role description in the user message', async () => {
       vi.mocked(mockLLM.chat).mockResolvedValue(makeInterpreterResponse({ comment: 'ok' }));
       await interpretFeedback('runner', 'raw', baseTest, baseConversation, baseJudgeResult, mockLLM);
-      const callArgs = vi.mocked(mockLLM.chat).mock.calls[0][0];
-      expect(callArgs.system).toContain('LLM runner');
+      const { messages } = vi.mocked(mockLLM.chat).mock.calls[0][0];
+      expect(messages[0].content).toContain('LLM runner');
     });
 
     it('parses comment from response', async () => {
